@@ -1,13 +1,14 @@
 package com.nivuk.agent.exporters;
 
-import com.nivuk.agent.model.Metric;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.nivuk.agent.model.Metric;
 
 public class LoggingMetricsExporter implements MetricsExporter {
     private static final Logger logger = LoggerFactory.getLogger(LoggingMetricsExporter.class);

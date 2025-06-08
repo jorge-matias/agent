@@ -1,14 +1,14 @@
 # Global configuration
+intervalSeconds: 1
 
 # Collectors configuration
 collectors:
-  - intervalSeconds: 1
-  - class: com.nivuk.agent.collectors.CpuCollector
-  - class: com.nivuk.agent.collectors.MemoryCollector
+  cpu: true
+  memory: true
 
 # Exporters configuration
 exporters:
-  - class: com.nivuk.agent.exporters.LoggingMetricsExporter
-  - class: com.nivuk.agent.exporters.WebServiceMetricsExporter
-    properties:
-      serverUrl: http://server-module:8080/metrics
+  logging: true
+  webservice:
+    enabled: true
+    serverUrl: http://server-module:8080/metrics
