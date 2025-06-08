@@ -1,5 +1,5 @@
 FROM eclipse-temurin:17-jdk
 WORKDIR /app
-COPY target/agent-module-1.0-SNAPSHOT.jar agent.jar
+COPY target/agent-module-1.0-SNAPSHOT-jar-with-dependencies.jar agent.jar
 ENV SERVER_URL=http://server-module:8080/metrics
-CMD ["java", "-cp", "agent.jar", "com.example.agent.AgentMain"]
+CMD ["java", "-jar", "agent.jar"]
