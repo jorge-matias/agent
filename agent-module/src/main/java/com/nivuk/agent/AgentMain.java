@@ -1,5 +1,7 @@
 package com.nivuk.agent;
 
+import com.nivuk.collectors.CpuCollector;
+import com.nivuk.collectors.MemoryCollector;
 import okhttp3.*;
 import java.util.Timer;
 import java.util.Arrays;

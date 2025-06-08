@@ -1,5 +1,7 @@
 package com.nivuk.agent;
 
+import com.nivuk.collectors.Collector;
+import com.nivuk.collectors.MetricValue;
 import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +33,7 @@ public class MetricsCollectorTask extends TimerTask {
 
         Request request = new Request.Builder()
                 .url(serverUrl)
-                .post(RequestBody.create(MediaType.get("application/json"), json))
+                .post(RequestBody.create(json, MediaType.get("application/json")))
                 .build();
 
         try {

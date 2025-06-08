@@ -1,4 +1,4 @@
-package com.nivuk.agent;
+package com.nivuk.collectors;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
