@@ -1,0 +1,14 @@
+# Global configuration
+collectionIntervalSeconds: 60
+
+# Collectors configuration
+collectors:
+  - class: com.nivuk.agent.collectors.CpuCollector
+  - class: com.nivuk.agent.collectors.MemoryCollector
+
+# Exporters configuration
+exporters:
+  - class: com.nivuk.agent.exporters.LoggingMetricsExporter
+  - class: com.nivuk.agent.exporters.WebServiceMetricsExporter
+    properties:
+      serverUrl: http://localhost:8080/metrics

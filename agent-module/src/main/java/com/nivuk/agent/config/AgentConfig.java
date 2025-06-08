@@ -1,84 +1,147 @@
 package com.nivuk.agent.config;
 
-import java.io.InputStream;
-import java.util.Map;
-
+import com.nivuk.agent.collectors.Collector;
+import com.nivuk.agent.exporters.MetricsExporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
+import java.io.InputStream;
+import java.util.*;
+
 public class AgentConfig {
     private static final Logger logger = LoggerFactory.getLogger(AgentConfig.class);
-
-    private final String serverUrl;
     private final int collectionIntervalSeconds;
-    private final boolean enableLoggingExporter;
-    private final boolean enableWebServiceExporter;
+    private final List<ComponentConfig> exporters;
+    private final List<ComponentConfig> collectors;
 
-    private AgentConfig(String serverUrl, int collectionIntervalSeconds,
-                       boolean enableLoggingExporter, boolean enableWebServiceExporter) {
-        this.serverUrl = serverUrl;
-        this.collectionIntervalSeconds = collectionIntervalSeconds;
-        this.enableLoggingExporter = enableLoggingExporter;
-        this.enableWebServiceExporter = enableWebServiceExporter;
+    public static class ComponentConfig {
+        private final String className;
+        private final Map<String, String> properties;
+
+        public ComponentConfig(String className, Map<String, String> properties) {
+            this.className = className;
+            this.properties = properties != null ? properties : Map.of();
+        }
+
+        public String getClassName() {
+            return className;
+        }
+
+        public Map<String, String> getProperties() {
+            return properties;
+        }
     }
 
-    public String getServerUrl() {
-        return serverUrl;
+    private AgentConfig(int collectionIntervalSeconds, List<ComponentConfig> exporters,
+                       List<ComponentConfig> collectors) {
+        this.collectionIntervalSeconds = collectionIntervalSeconds;
+        this.exporters = exporters;
+        this.collectors = collectors;
     }
 
     public int getCollectionIntervalSeconds() {
         return collectionIntervalSeconds;
     }
 
-    public boolean isLoggingExporterEnabled() {
-        return enableLoggingExporter;
-    }
-
-    public boolean isWebServiceExporterEnabled() {
-        return enableWebServiceExporter;
-    }
-
     public static AgentConfig load() {
         Map<String, Object> config = loadYamlConfig();
+        String intervalStr = getConfigValue(config, "collectionIntervalSeconds",
+            "AGENT_COLLECTION_INTERVAL", "60");
+
         return new AgentConfig(
-            getConfigValue(config, "serverUrl", "AGENT_SERVER_URL", "http://localhost:8080/metrics"),
-            Integer.parseInt(getConfigValue(config, "collectionIntervalSeconds", "AGENT_COLLECTION_INTERVAL", "60")),
-            Boolean.parseBoolean(getConfigValue(config, "enableLoggingExporter", "AGENT_ENABLE_LOGGING", "true")),
-            Boolean.parseBoolean(getConfigValue(config, "enableWebServiceExporter", "AGENT_ENABLE_WEBSERVICE", "true"))
+            Integer.parseInt(intervalStr),
+            loadComponents(config, "exporters"),
+            loadComponents(config, "collectors")
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<ComponentConfig> loadComponents(Map<String, Object> config, String key) {
+        List<ComponentConfig> components = new ArrayList<>();
+        List<Map<String, Object>> componentConfigs = (List<Map<String, Object>>) config.getOrDefault(key, List.of());
+
+        for (Map<String, Object> componentConfig : componentConfigs) {
+            String className = (String) componentConfig.get("class");
+            Map<String, String> properties = new HashMap<>();
+
+            Map<String, Object> configProperties = (Map<String, Object>) componentConfig.getOrDefault("properties", Map.of());
+            configProperties.forEach((k, v) -> properties.put(k, String.valueOf(v)));
+
+            components.add(new ComponentConfig(className, properties));
+        }
+
+        return components;
     }
 
     private static Map<String, Object> loadYamlConfig() {
         try (InputStream input = Thread.currentThread().getContextClassLoader().getResourceAsStream("agent-config.yml")) {
             if (input == null) {
-                logger.warn("No agent-config.yml found, using defaults and environment variables");
+                logger.warn("No agent-config.yml found, using defaults");
                 return Map.of();
             }
-            Yaml yaml = new Yaml();
-            return yaml.load(input);
+            return new Yaml().load(input);
         } catch (Exception e) {
             logger.error("Error loading configuration", e);
             return Map.of();
         }
     }
 
-    private static String getConfigValue(Map<String, Object> yamlConfig, String yamlPath, String envVar, String defaultValue) {
-        // First try environment variable
+    public List<Collector> createCollectors() {
+        List<Collector> result = new ArrayList<>();
+        for (ComponentConfig config : collectors) {
+            try {
+                Class<?> clazz = Class.forName(config.getClassName());
+                if (Collector.class.isAssignableFrom(clazz)) {
+                    result.add((Collector) clazz.getDeclaredConstructor().newInstance());
+                } else {
+                    logger.error("Class {} is not a Collector", config.getClassName());
+                }
+            } catch (Exception e) {
+                logger.error("Failed to create collector {}", config.getClassName(), e);
+            }
+        }
+        return result;
+    }
+
+    public List<MetricsExporter> createExporters() {
+        List<MetricsExporter> result = new ArrayList<>();
+        for (ComponentConfig config : exporters) {
+            try {
+                Class<?> clazz = Class.forName(config.getClassName());
+                if (MetricsExporter.class.isAssignableFrom(clazz)) {
+                    if (config.getClassName().contains("WebServiceMetricsExporter")) {
+                        String serverUrl = config.getProperties().getOrDefault("serverUrl",
+                            "http://localhost:8080/metrics");
+                        result.add((MetricsExporter) clazz.getDeclaredConstructor(okhttp3.OkHttpClient.class,
+                            String.class).newInstance(new okhttp3.OkHttpClient(), serverUrl));
+                    } else {
+                        result.add((MetricsExporter) clazz.getDeclaredConstructor().newInstance());
+                    }
+                } else {
+                    logger.error("Class {} is not a MetricsExporter", config.getClassName());
+                }
+            } catch (Exception e) {
+                logger.error("Failed to create exporter {}", config.getClassName(), e);
+            }
+        }
+        return result;
+    }
+
+    private static String getConfigValue(Map<String, Object> yamlConfig, String yamlPath,
+                                      String envVar, String defaultValue) {
         String envValue = System.getenv(envVar);
         if (envValue != null && !envValue.isEmpty()) {
             logger.debug("Using environment variable {} value: {}", envVar, envValue);
             return envValue;
         }
 
-        // Then try YAML config
         Object yamlValue = yamlConfig.get(yamlPath);
         if (yamlValue != null) {
             logger.debug("Using YAML config value for {}: {}", yamlPath, yamlValue);
             return String.valueOf(yamlValue);
         }
 
-        // Finally use default
         logger.debug("Using default value for {}: {}", yamlPath, defaultValue);
         return defaultValue;
     }
