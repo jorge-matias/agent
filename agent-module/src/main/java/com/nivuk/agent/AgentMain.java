@@ -1,4 +1,4 @@
-package com.example.agent;
+package com.nivuk.agent;
 
 import okhttp3.*;
 

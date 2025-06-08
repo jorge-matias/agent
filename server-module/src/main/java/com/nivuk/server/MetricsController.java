@@ -1,4 +1,4 @@
-package com.example.server;
+package com.nivuk.server;
 
 import org.springframework.web.bind.annotation.*;
 
