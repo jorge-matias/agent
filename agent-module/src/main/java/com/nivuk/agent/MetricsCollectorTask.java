@@ -23,7 +23,10 @@ public class MetricsCollectorTask extends TimerTask {
     @Override
     public void run() {
         String json = "{" + collectors.stream()
-            .map(Collector::collect)
+            .map(collector -> {
+                MetricValue metric = collector.collect();
+                return String.format("\"%s\": %s", metric.name(), metric.value());
+            })
             .collect(Collectors.joining(", ")) + "}";
 
         Request request = new Request.Builder()
@@ -35,7 +38,7 @@ public class MetricsCollectorTask extends TimerTask {
             Response response = client.newCall(request).execute();
             response.close();
         } catch (IOException e) {
-            logger.error("Failed to send metrics to server: {}", e.getMessage(), e);
+            logger.warn("Failed to send metrics to server: {}", e.getMessage(), e);
         }
     }
 }

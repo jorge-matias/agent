@@ -11,8 +11,8 @@ public class MemoryCollector implements Collector {
     }
 
     @Override
-    public String collect() {
+    public MetricValue collect() {
         double value = memBean.getHeapMemoryUsage().getUsed();
-        return String.format("\"memory\": %.0f", value);
+        return new MetricValue("memory", value, "bytes");
     }
 }

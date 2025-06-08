@@ -11,8 +11,8 @@ public class CpuCollector implements Collector {
     }
 
     @Override
-    public String collect() {
+    public MetricValue collect() {
         double value = osBean.getSystemLoadAverage();
-        return String.format("\"cpu\": %.2f", value);
+        return new MetricValue("cpu", value, "load");
     }
 }
