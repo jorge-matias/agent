@@ -11,9 +11,9 @@ import java.util.*;
 
 public class AgentConfig {
     private static final Logger logger = LoggerFactory.getLogger(AgentConfig.class);
-    private final int collectionIntervalSeconds;
     private final List<ComponentConfig> exporters;
     private final List<ComponentConfig> collectors;
+    private final int collectorIntervalSeconds;
 
     public static class ComponentConfig {
         private final String className;
@@ -33,26 +33,49 @@ public class AgentConfig {
         }
     }
 
-    private AgentConfig(int collectionIntervalSeconds, List<ComponentConfig> exporters,
-                       List<ComponentConfig> collectors) {
-        this.collectionIntervalSeconds = collectionIntervalSeconds;
+    private AgentConfig(List<ComponentConfig> exporters, List<ComponentConfig> collectors,
+                       int collectorIntervalSeconds) {
         this.exporters = exporters;
         this.collectors = collectors;
+        this.collectorIntervalSeconds = collectorIntervalSeconds;
     }
 
     public int getCollectionIntervalSeconds() {
-        return collectionIntervalSeconds;
+        return collectorIntervalSeconds;
     }
 
+    @SuppressWarnings("unchecked")
     public static AgentConfig load() {
         Map<String, Object> config = loadYamlConfig();
-        String intervalStr = getConfigValue(config, "collectionIntervalSeconds",
-            "AGENT_COLLECTION_INTERVAL", "60");
+        List<Map<String, Object>> collectorsConfig = (List<Map<String, Object>>)
+            config.getOrDefault("collectors", List.of());
+
+        // Find intervalSeconds in collectors configuration
+        int intervalSeconds = 60; // default value
+        List<ComponentConfig> collectors = new ArrayList<>();
+
+        for (Map<String, Object> collectorConfig : collectorsConfig) {
+            if (collectorConfig.containsKey("intervalSeconds")) {
+                intervalSeconds = Integer.parseInt(String.valueOf(collectorConfig.get("intervalSeconds")));
+                continue;
+            }
+
+            String className = (String) collectorConfig.get("class");
+            if (className != null) {
+                collectors.add(new ComponentConfig(className, Map.of()));
+            }
+        }
+
+        // Override with environment variable if present
+        String envInterval = System.getenv("AGENT_COLLECTION_INTERVAL");
+        if (envInterval != null && !envInterval.isEmpty()) {
+            intervalSeconds = Integer.parseInt(envInterval);
+        }
 
         return new AgentConfig(
-            Integer.parseInt(intervalStr),
             loadComponents(config, "exporters"),
-            loadComponents(config, "collectors")
+            collectors,
+            intervalSeconds
         );
     }
 
@@ -126,23 +149,5 @@ public class AgentConfig {
             }
         }
         return result;
-    }
-
-    private static String getConfigValue(Map<String, Object> yamlConfig, String yamlPath,
-                                      String envVar, String defaultValue) {
-        String envValue = System.getenv(envVar);
-        if (envValue != null && !envValue.isEmpty()) {
-            logger.debug("Using environment variable {} value: {}", envVar, envValue);
-            return envValue;
-        }
-
-        Object yamlValue = yamlConfig.get(yamlPath);
-        if (yamlValue != null) {
-            logger.debug("Using YAML config value for {}: {}", yamlPath, yamlValue);
-            return String.valueOf(yamlValue);
-        }
-
-        logger.debug("Using default value for {}: {}", yamlPath, defaultValue);
-        return defaultValue;
     }
 }

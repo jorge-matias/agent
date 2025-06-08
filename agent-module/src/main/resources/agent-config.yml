@@ -1,8 +1,8 @@
 # Global configuration
-collectionIntervalSeconds: 60
 
 # Collectors configuration
 collectors:
+  - intervalSeconds: 1
   - class: com.nivuk.agent.collectors.CpuCollector
   - class: com.nivuk.agent.collectors.MemoryCollector
 
