@@ -1,12 +1,14 @@
 package com.nivuk.agent;
 
-import com.nivuk.agent.export.LoggingMetricsExporter;
-import com.nivuk.agent.export.WebServiceMetricsExporter;
-import com.nivuk.collectors.CpuCollector;
-import com.nivuk.collectors.MemoryCollector;
-import okhttp3.OkHttpClient;
 import java.util.Arrays;
 import java.util.Timer;
+
+import com.nivuk.agent.collectors.CpuCollector;
+import com.nivuk.agent.collectors.MemoryCollector;
+import com.nivuk.agent.exporters.LoggingMetricsExporter;
+import com.nivuk.agent.exporters.WebServiceMetricsExporter;
+
+import okhttp3.OkHttpClient;
 
 public class AgentMain {
     public static void main(String[] args) {

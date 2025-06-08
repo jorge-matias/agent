@@ -1,7 +1,9 @@
-package com.nivuk.collectors;
+package com.nivuk.agent.collectors;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
+
+import com.nivuk.agent.model.Metric;
 
 public class MemoryCollector implements Collector {
     private final MemoryMXBean memBean;
@@ -11,8 +13,8 @@ public class MemoryCollector implements Collector {
     }
 
     @Override
-    public MetricValue collect() {
+    public Metric collect() {
         double value = memBean.getHeapMemoryUsage().getUsed();
-        return new MetricValue("memory", value, "bytes");
+        return new Metric("memory", value, "bytes");
     }
 }

@@ -1,7 +1,9 @@
-package com.nivuk.collectors;
+package com.nivuk.agent.collectors;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
+
+import com.nivuk.agent.model.Metric;
 
 public class CpuCollector implements Collector {
     private final OperatingSystemMXBean osBean;
@@ -11,8 +13,8 @@ public class CpuCollector implements Collector {
     }
 
     @Override
-    public MetricValue collect() {
+    public Metric collect() {
         double value = osBean.getSystemLoadAverage();
-        return new MetricValue("cpu", value, "load");
+        return new Metric("cpu", value, "load");
     }
 }

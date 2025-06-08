@@ -1,12 +1,11 @@
 package com.nivuk.agent;
 
-import com.nivuk.agent.export.MetricsExporter;
-import com.nivuk.collectors.Collector;
-import com.nivuk.collectors.MetricValue;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.TimerTask;
+
+import com.nivuk.agent.collectors.Collector;
+import com.nivuk.agent.exporters.MetricsExporter;
+import com.nivuk.agent.model.Metric;
 
 public class MetricsCollectionJob extends TimerTask {
     private final List<Collector> collectors;
@@ -19,14 +18,11 @@ public class MetricsCollectionJob extends TimerTask {
 
     @Override
     public void run() {
-        Map<String, Double> metrics = new HashMap<>();
         for (Collector collector : collectors) {
-            MetricValue metric = collector.collect();
-            metrics.put(metric.name(), metric.value());
-        }
-
-        for (MetricsExporter exporter : exporters) {
-            exporter.export(metrics);
+            Metric metric = collector.collect();
+            for (MetricsExporter exporter : exporters) {
+                exporter.export(metric);
+            }
         }
     }
 }
