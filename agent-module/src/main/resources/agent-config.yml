@@ -11,4 +11,4 @@ exporters:
   - class: com.nivuk.agent.exporters.LoggingMetricsExporter
   - class: com.nivuk.agent.exporters.WebServiceMetricsExporter
     properties:
-      serverUrl: http://localhost:8080/metrics
+      serverUrl: http://server-module:8080/metrics
