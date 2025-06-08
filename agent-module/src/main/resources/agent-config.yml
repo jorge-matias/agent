@@ -8,7 +8,10 @@ collectors:
 
 # Exporters configuration
 exporters:
-  logging: true
+  logging:
+    enabled: true
+    bufferSeconds: 10
   webservice:
     enabled: true
+    bufferSeconds: 10
     serverUrl: http://server-module:8080/metrics

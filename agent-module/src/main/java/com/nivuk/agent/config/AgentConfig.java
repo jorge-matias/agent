@@ -54,13 +54,26 @@ public class AgentConfig {
         Map<String, String> exporterProperties = new HashMap<>();
         Map<String, Object> exporters = (Map<String, Object>) config.getOrDefault("exporters", Map.of());
 
-        exporterFlags.put("logging", (Boolean) exporters.getOrDefault("logging", false));
+        // Handle logging exporter config
+        if (exporters.containsKey("logging")) {
+            Map<String, Object> logging = (Map<String, Object>) exporters.get("logging");
+            exporterFlags.put("logging", (Boolean) logging.getOrDefault("enabled", false));
+            if (logging.containsKey("bufferSeconds")) {
+                exporterProperties.put("logging.bufferSeconds", String.valueOf(logging.get("bufferSeconds")));
+            }
+        } else {
+            exporterFlags.put("logging", false);
+        }
 
+        // Handle webservice exporter config
         if (exporters.containsKey("webservice")) {
             Map<String, Object> webservice = (Map<String, Object>) exporters.get("webservice");
             exporterFlags.put("webservice", (Boolean) webservice.getOrDefault("enabled", false));
             if (webservice.containsKey("serverUrl")) {
                 exporterProperties.put("serverUrl", (String) webservice.get("serverUrl"));
+            }
+            if (webservice.containsKey("bufferSeconds")) {
+                exporterProperties.put("webservice.bufferSeconds", String.valueOf(webservice.get("bufferSeconds")));
             }
         } else {
             exporterFlags.put("webservice", false);
@@ -100,12 +113,22 @@ public class AgentConfig {
         List<MetricsExporter> result = new ArrayList<>();
 
         if (exporterFlags.getOrDefault("logging", false)) {
-            result.add(new LoggingMetricsExporter());
+            MetricsExporter exporter = new LoggingMetricsExporter();
+            int bufferSeconds = Integer.parseInt(exporterProperties.getOrDefault("logging.bufferSeconds", "0"));
+            if (bufferSeconds > 0) {
+                exporter = new BufferedMetricsExporter(exporter, bufferSeconds);
+            }
+            result.add(exporter);
         }
 
         if (exporterFlags.getOrDefault("webservice", false)) {
             String serverUrl = exporterProperties.getOrDefault("serverUrl", "http://localhost:8080/metrics");
-            result.add(new WebServiceMetricsExporter(new okhttp3.OkHttpClient(), serverUrl));
+            MetricsExporter exporter = new WebServiceMetricsExporter(new okhttp3.OkHttpClient(), serverUrl);
+            int bufferSeconds = Integer.parseInt(exporterProperties.getOrDefault("webservice.bufferSeconds", "0"));
+            if (bufferSeconds > 0) {
+                exporter = new BufferedMetricsExporter(exporter, bufferSeconds);
+            }
+            result.add(exporter);
         }
 
         return result;
