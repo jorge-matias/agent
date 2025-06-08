@@ -1,9 +1,8 @@
 package com.nivuk.agent.collectors;
 
+import com.nivuk.agent.model.Metric;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
-
-import com.nivuk.agent.model.Metric;
 
 public class MemoryCollector implements Collector {
     private final MemoryMXBean memBean;

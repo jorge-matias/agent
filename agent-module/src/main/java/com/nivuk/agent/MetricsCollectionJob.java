@@ -1,5 +1,6 @@
 package com.nivuk.agent;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.TimerTask;
 
@@ -18,11 +19,14 @@ public class MetricsCollectionJob extends TimerTask {
 
     @Override
     public void run() {
+        List<Metric> metrics = new ArrayList<>();
         for (Collector collector : collectors) {
             Metric metric = collector.collect();
-            for (MetricsExporter exporter : exporters) {
-                exporter.export(metric);
-            }
+            metrics.add(metric);
+        }
+
+        for (MetricsExporter exporter : exporters) {
+            exporter.export(metrics);
         }
     }
 }

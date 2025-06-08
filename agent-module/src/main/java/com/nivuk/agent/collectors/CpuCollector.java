@@ -1,9 +1,8 @@
 package com.nivuk.agent.collectors;
 
+import com.nivuk.agent.model.Metric;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
-
-import com.nivuk.agent.model.Metric;
 
 public class CpuCollector implements Collector {
     private final OperatingSystemMXBean osBean;
