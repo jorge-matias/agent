@@ -4,9 +4,16 @@ COPY target/agent-module-1.0-SNAPSHOT-jar-with-dependencies.jar agent.jar
 COPY src/main/resources/agent-config.yml ./
 RUN gu install native-image
 RUN mkdir -p /app/resources && cp agent-config.yml /app/resources/
+
+# Build arguments for development mode
+ARG QUICK_BUILD=false
 RUN native-image --no-fallback -jar agent.jar \
     -H:IncludeResources=agent-config.yml \
-    --initialize-at-build-time=org.slf4j.LoggerFactory,ch.qos.logback,org.slf4j.impl.StaticLoggerBinder
+    --initialize-at-build-time=org.slf4j.LoggerFactory,ch.qos.logback,org.slf4j.impl.StaticLoggerBinder \
+    -J-Xmx4G \
+    -J-Xms4G \
+    -H:+ReportExceptionStackTraces \
+    $(if [ "$QUICK_BUILD" = "true" ] ; then echo '--quick-build --optimization-level=0'; fi)
 
 FROM ubuntu:22.04
 RUN apt-get update && apt-get install -y \

@@ -10,7 +10,6 @@ collectors:
 exporters:
   logging:
     enabled: true
-    bufferSeconds: 10
   webservice:
     enabled: true
     bufferSeconds: 10

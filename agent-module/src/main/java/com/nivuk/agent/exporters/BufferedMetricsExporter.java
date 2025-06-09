@@ -4,11 +4,11 @@ import com.nivuk.agent.model.Metric;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class BufferedMetricsExporter implements MetricsExporter {
     private static final Logger logger = LoggerFactory.getLogger(BufferedMetricsExporter.class);
@@ -48,8 +48,19 @@ public class BufferedMetricsExporter implements MetricsExporter {
         }
 
         try {
-            delegate.export(toExport);
-            logger.debug("Flushed {} metrics after {} seconds", toExport.size(), bufferSeconds);
+            // Group metrics by timestamp and host
+            Map<String, List<Metric>> groupedMetrics = toExport.stream()
+                .collect(Collectors.groupingBy(m -> m.timestamp() + "-" + m.host()));
+
+            // Export each group as a single batch
+            for (List<Metric> group : groupedMetrics.values()) {
+                delegate.export(group);
+            }
+
+            logger.debug("Flushed {} metrics ({} batches) after {} seconds",
+                toExport.size(),
+                groupedMetrics.size(),
+                bufferSeconds);
         } catch (Exception e) {
             logger.error("Error flushing metrics", e);
             // Put metrics back in buffer to try again next time

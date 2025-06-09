@@ -5,9 +5,18 @@ import org.slf4j.LoggerFactory;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-public record Metric(String name, double value, String unit) {
+public record Metric(
+    String name,
+    double value,
+    String unit,
+    String host,
+    long timestamp) {
+
     private static final Logger logger = LoggerFactory.getLogger(Metric.class);
-    private static final String hostname = determineHostname();
+
+    public Metric(String name, double value, String unit) {
+        this(name, value, unit, determineHostname(), getCurrentTimestamp());
+    }
 
     private static String determineHostname() {
         try {
@@ -18,11 +27,7 @@ public record Metric(String name, double value, String unit) {
         }
     }
 
-    public static String getHostname() {
-        return hostname;
-    }
-
-    public static long getCurrentTimestamp() {
+    private static long getCurrentTimestamp() {
         return System.currentTimeMillis() / 1000;
     }
 }

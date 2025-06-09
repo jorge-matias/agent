@@ -1,9 +1,6 @@
 package com.nivuk.agent.exporters;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,23 +17,14 @@ public class LoggingMetricsExporter implements MetricsExporter {
             return;
         }
 
-        Map<String, Double> metricsMap = new HashMap<>();
-        metrics.forEach(metric -> metricsMap.put(metric.name(), metric.value()));
-
-        String json = String.format("""
-            {
-              "timestamp": %d,
-              "host": "%s",
-              "metrics": {%s
-              }
-            }""",
-            Metric.getCurrentTimestamp(),
-            Metric.getHostname(),
-            metricsMap.entrySet().stream()
-                .map(entry -> String.format("\n                \"%s\": %s", entry.getKey(), entry.getValue()))
-                .collect(Collectors.joining(","))
-        );
-
-        logger.info("Metrics: {}", json);
+        for (Metric metric : metrics) {
+            logger.info("Metric: name={}, value={}{}, host={}, timestamp={}",
+                metric.name(),
+                metric.value(),
+                metric.unit().isEmpty() ? "" : " " + metric.unit(),
+                metric.host(),
+                metric.timestamp()
+            );
+        }
     }
 }

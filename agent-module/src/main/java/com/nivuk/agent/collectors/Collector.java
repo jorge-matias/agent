@@ -1,7 +1,8 @@
 package com.nivuk.agent.collectors;
 
 import com.nivuk.agent.model.Metric;
+import java.util.List;
 
 public interface Collector {
-    Metric collect();
+    List<Metric> collect();
 }

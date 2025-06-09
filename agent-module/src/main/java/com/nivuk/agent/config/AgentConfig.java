@@ -113,12 +113,7 @@ public class AgentConfig {
         List<MetricsExporter> result = new ArrayList<>();
 
         if (exporterFlags.getOrDefault("logging", false)) {
-            MetricsExporter exporter = new LoggingMetricsExporter();
-            int bufferSeconds = Integer.parseInt(exporterProperties.getOrDefault("logging.bufferSeconds", "0"));
-            if (bufferSeconds > 0) {
-                exporter = new BufferedMetricsExporter(exporter, bufferSeconds);
-            }
-            result.add(exporter);
+            result.add(new LoggingMetricsExporter());
         }
 
         if (exporterFlags.getOrDefault("webservice", false)) {

@@ -1,9 +1,7 @@
 package com.nivuk.agent.exporters;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.StringJoiner;
 
 import org.jetbrains.annotations.NotNull;
@@ -35,43 +33,46 @@ public class WebServiceMetricsExporter implements MetricsExporter {
             return;
         }
 
-        Map<String, Double> metricsMap = new HashMap<>();
-        metrics.forEach(metric -> metricsMap.put(metric.name(), metric.value()));
-        sendMetricsToServer(metricsMap);
+        // All metrics in the list should have the same timestamp and host
+        Metric firstMetric = metrics.get(0);
+        String json = metricsToJson(metrics, firstMetric.timestamp(), firstMetric.host());
+        sendMetricsToServer(json);
     }
 
-    private void sendMetricsToServer(Map<String, Double> metrics) {
-        String json = metricsToJson(metrics);
+    private void sendMetricsToServer(String json) {
         Request request = new Request.Builder()
                 .url(serverUrl)
                 .post(RequestBody.create(json, MediaType.get("application/json")))
                 .build();
 
-        try {
-            Response response = client.newCall(request).execute();
-            response.close();
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                logger.error("Failed to send metrics to server. Status: {}, Body: {}",
+                        response.code(), response.body() != null ? response.body().string() : "empty");
+            }
         } catch (IOException e) {
             logger.error("Failed to send metrics to server: {}", e.getMessage(), e);
         }
     }
 
     @NotNull
-    private static String metricsToJson(Map<String, Double> metrics) {
-        StringJoiner joiner = new StringJoiner(",");
-        for (Map.Entry<String, Double> entry : metrics.entrySet()) {
-            String format = String.format("\n                \"%s\": %s", entry.getKey(), entry.getValue());
+    private static String metricsToJson(List<Metric> metrics, long timestamp, String host) {
+        StringJoiner joiner = new StringJoiner(",\n                ");
+        for (Metric metric : metrics) {
+            String format = String.format("\"%s\": %.2f", metric.name(), metric.value());
             joiner.add(format);
         }
         return String.format("""
             {
               "timestamp": %d,
               "host": "%s",
-              "metrics": {%s
+              "metrics": {
+                %s
               }
             }""",
-            Metric.getCurrentTimestamp(),
-            Metric.getHostname(),
-                joiner.toString()
+            timestamp,
+            host,
+            joiner
         );
     }
 }

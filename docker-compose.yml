@@ -5,6 +5,13 @@ services:
       - "8080:8080"
 
   agent-module:
-    build: ./agent-module
+    build:
+      context: ./agent-module
+      args:
+        - QUICK_BUILD=${QUICK_BUILD:-false}
+    volumes:
+      - ./metrics:/app/metrics
     depends_on:
       - server-module
+    environment:
+      - SERVER_URL=http://server-module:8080/metrics

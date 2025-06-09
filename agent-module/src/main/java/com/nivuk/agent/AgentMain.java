@@ -13,7 +13,7 @@ public class AgentMain {
         logger.info("Starting agent with collection interval={}",
             config.getCollectionIntervalSeconds());
 
-        MetricsCollectionJob job = new MetricsCollectionJob(
+        MetricsCollectionTask job = new MetricsCollectionTask(
             config.createCollectors(),
             config.createExporters()
         );
