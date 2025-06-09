@@ -1,17 +1,25 @@
 services:
+  maven:
+    image: maven:3.9-eclipse-temurin-17
+    volumes:
+      - .:/app
+      - ~/.m2:/root/.m2
+    working_dir: /app
+    command: mvn clean package
+    profiles: ["build"]
+
   server-module:
     build: ./server-module
     ports:
       - "8080:8080"
+    profiles: ["build", "default"]
 
   agent-module:
-    build:
-      context: ./agent-module
-      args:
-        - QUICK_BUILD=${QUICK_BUILD:-false}
+    build: ./agent-module
     volumes:
       - ./metrics:/app/metrics
     depends_on:
       - server-module
     environment:
       - SERVER_URL=http://server-module:8080/metrics
+    profiles: ["build", "default"]
