@@ -18,10 +18,15 @@ import okhttp3.Response;
 
 public class WebServiceMetricsExporter implements MetricsExporter {
     private static final Logger logger = LoggerFactory.getLogger(WebServiceMetricsExporter.class);
-    private final OkHttpClient client;
+    private final HttpClient client;
     private final String serverUrl;
 
-    public WebServiceMetricsExporter(OkHttpClient client, String serverUrl) {
+    public WebServiceMetricsExporter(OkHttpClient okHttpClient, String serverUrl) {
+        this(new OkHttpClientWrapper(okHttpClient), serverUrl);
+    }
+
+    // For testing
+    WebServiceMetricsExporter(HttpClient client, String serverUrl) {
         this.client = client;
         this.serverUrl = serverUrl;
     }

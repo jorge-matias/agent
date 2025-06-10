@@ -1,16 +1,19 @@
 package com.nivuk.agent.collectors;
 
 import com.nivuk.agent.model.Metric;
-import com.sun.management.OperatingSystemMXBean;
 
-import java.lang.management.ManagementFactory;
 import java.util.List;
 
 public class CpuCollector implements Collector {
-    private final OperatingSystemMXBean osBean;
+    private final SystemInfoProvider systemInfo;
 
     public CpuCollector() {
-        this.osBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+        this(new DefaultSystemInfoProvider());
+    }
+
+    // For testing
+    CpuCollector(SystemInfoProvider systemInfo) {
+        this.systemInfo = systemInfo;
     }
 
     @Override
@@ -23,7 +26,7 @@ public class CpuCollector implements Collector {
 
     private CpuMeasurement measureCpuLoad() {
         long currentTime = System.currentTimeMillis();
-        double cpuLoad = osBean.getCpuLoad();
+        double cpuLoad = systemInfo.getCpuLoad();
 
         // Convert to percentage and handle edge cases
         double cpuPercentage = Math.max(0, Math.min(100, cpuLoad * 100));
