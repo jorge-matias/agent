@@ -51,9 +51,7 @@ public class WebServiceMetricsExporter implements MetricsExporter {
                 .post(RequestBody.create(json, MediaType.get("application/json")))
                 .build();
 
-        Response response = null;
-        try {
-            response = client.newCall(request).execute();
+        try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 String errorBody = "";
                 if (response.body() != null) {
@@ -64,13 +62,6 @@ public class WebServiceMetricsExporter implements MetricsExporter {
             }
         } catch (IOException e) {
             logger.error("Failed to send metrics to server: {}", e.getMessage(), e);
-        } finally {
-            if (response != null && response.body() != null) {
-                response.body().close();
-            }
-            if (response != null) {
-                response.close();
-            }
         }
     }
 
