@@ -2,6 +2,7 @@ package com.nivuk.agent.exporters;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.StringJoiner;
 
 import org.jetbrains.annotations.NotNull;
@@ -50,13 +51,26 @@ public class WebServiceMetricsExporter implements MetricsExporter {
                 .post(RequestBody.create(json, MediaType.get("application/json")))
                 .build();
 
-        try (Response response = client.newCall(request).execute()) {
+        Response response = null;
+        try {
+            response = client.newCall(request).execute();
             if (!response.isSuccessful()) {
+                String errorBody = "";
+                if (response.body() != null) {
+                    errorBody = response.body().string();
+                }
                 logger.error("Failed to send metrics to server. Status: {}, Body: {}",
-                        response.code(), response.body() != null ? response.body().string() : "empty");
+                    response.code(), errorBody);
             }
         } catch (IOException e) {
             logger.error("Failed to send metrics to server: {}", e.getMessage(), e);
+        } finally {
+            if (response != null && response.body() != null) {
+                response.body().close();
+            }
+            if (response != null) {
+                response.close();
+            }
         }
     }
 
@@ -64,8 +78,8 @@ public class WebServiceMetricsExporter implements MetricsExporter {
     private static String metricsToJson(List<Metric> metrics, long timestamp, String host) {
         StringJoiner joiner = new StringJoiner(",");
         for (Metric metric : metrics) {
-            // Use compact format with minimal decimal places
-            String value = String.format("%.1f", metric.value());
+            // Use English locale to ensure dot as decimal separator
+            String value = String.format(Locale.ENGLISH, "%.1f", metric.value());
             // Remove .0 suffix for whole numbers
             if (value.endsWith(".0")) {
                 value = value.substring(0, value.length() - 2);

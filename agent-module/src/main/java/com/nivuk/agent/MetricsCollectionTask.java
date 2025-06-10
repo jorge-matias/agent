@@ -17,6 +17,11 @@ public class MetricsCollectionTask extends TimerTask {
         this.exporters = exporters;
     }
 
+    public MetricsCollectionTask(List<Collector> collectors, MetricsExporter exporter) {
+        this.collectors = collectors;
+        this.exporters = List.of(exporter);
+    }
+
     @Override
     public void run() {
         List<Metric> metrics = new ArrayList<>();
