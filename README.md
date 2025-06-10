@@ -89,55 +89,68 @@ exporters:
 
 ## Data Format
 
-The agent sends metrics to the server using a JSON format that groups metrics by name. Each metric includes its timestamp, value, and unit:
+The agent sends metrics to the server using a time-series optimized format:
 
 ```json
 {
-    "host": "hostname",
-    "metrics": {
-        "cpu": [
-            {
-                "t": 1686394800000,
-                "v": 45.2,
-                "u": "%"
-            },
-            {
-                "t": 1686394801000,
-                "v": 46.1,
-                "u": "%"
-            }
-        ],
-        "memory": [
-            {
-                "t": 1686394800000,
-                "v": 1024,
-                "u": "MB"
-            },
-            {
-                "t": 1686394801000,
-                "v": 1028,
-                "u": "MB"
-            }
-        ]
-    }
+    "points": [
+        {
+            "t": 1686394800000,  // timestamp in milliseconds
+            "h": "hostname",     // host identifier
+            "n": "cpu",         // metric name
+            "v": 45.2,          // value
+            "u": "%"            // unit
+        },
+        {
+            "t": 1686394800000,
+            "h": "hostname",
+            "n": "memory",
+            "v": 1024,
+            "u": "MB"
+        }
+    ]
 }
 ```
 
-The metrics are:
-- Grouped by host and metric name
-- Include timestamp (t), value (v), and unit (u) for each measurement
-- Sent in batches to optimize network usage
+Each data point contains:
+- `t`: Unix timestamp in milliseconds
+- `h`: Host identifier
+- `n`: Metric name
+- `v`: Metric value
+- `u`: Unit of measurement
 
-Available metrics and their units:
-- CPU Load: Percentage (%)
-- Memory: Megabytes (MB)
+This format is optimized for:
+- Time-series databases like Prometheus or InfluxDB
+- Direct visualization in Grafana
+- Easy querying and aggregation by time, host, or metric type
+- Efficient streaming and batch processing
 
 ## Server API Endpoints
 
-- `POST /metrics`: Submit new metrics
-- `GET /metrics/{host}/{metric}`: Get specific metric for a host
-- `GET /metrics/{host}`: Get all metrics for a host
-- `GET /metrics/aggregated?bucketSize=5m`: Get aggregated metrics (supported bucket sizes: s,m,h,d)
+- `POST /metrics`: Submit new metrics in time-series format
+- `GET /metrics`: Query metrics with optional filters:
+  - `host`: Filter by host
+  - `metric`: Filter by metric name
+  - `from`: Start timestamp (defaults to 1 hour ago)
+  - `to`: End timestamp (defaults to now)
+- `GET /metrics/hosts`: Get list of available hosts
+- `GET /metrics/names`: Get list of available metric types
+
+## Storage and Integration
+
+The server stores metrics in a time-series optimized structure that:
+- Uses skip lists for efficient time-range queries
+- Maintains separate time series per host and metric type
+- Supports real-time aggregation and downsampling
+- Is ready for integration with time-series databases
+
+### Grafana Integration
+
+The metrics format is designed for easy visualization in Grafana:
+1. Configure a JSON datasource pointing to the server
+2. Use metric names as series
+3. Host and unit are available as labels
+4. Time range queries are natively supported
 
 ## Directory Structure
 

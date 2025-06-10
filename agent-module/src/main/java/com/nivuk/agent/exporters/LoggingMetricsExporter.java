@@ -11,11 +11,7 @@ public class LoggingMetricsExporter implements MetricsExporter {
     private final MetricJsonFormatter formatter;
 
     public LoggingMetricsExporter() {
-        this(new MetricJsonFormatter(false)); // Use compact format
-    }
-
-    public LoggingMetricsExporter(MetricJsonFormatter formatter) {
-        this.formatter = formatter;
+        formatter = new MetricJsonFormatter();
     }
 
     @Override

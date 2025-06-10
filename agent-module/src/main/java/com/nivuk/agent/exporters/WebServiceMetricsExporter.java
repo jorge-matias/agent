@@ -1,49 +1,40 @@
 package com.nivuk.agent.exporters;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import com.nivuk.agent.model.Metric;
-
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
+import okhttp3.*;
 
 public class WebServiceMetricsExporter implements MetricsExporter, AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(WebServiceMetricsExporter.class);
     private final HttpClient client;
     private final String serverUrl;
-    private final Map<String, Map<String, List<Metric>>> batchedMetrics = new ConcurrentHashMap<>();
+    private final Map<String, List<Metric>> batchedMetrics = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private static final long BATCH_INTERVAL_SECONDS = 10;
     private final boolean batchingEnabled;
     private final MetricJsonFormatter formatter;
 
     public WebServiceMetricsExporter(OkHttpClient okHttpClient, String serverUrl) {
-        this(new OkHttpClientWrapper(okHttpClient), serverUrl, true, new MetricJsonFormatter());
+        this(new OkHttpClientWrapper(okHttpClient), serverUrl, true);
     }
 
     WebServiceMetricsExporter(HttpClient client, String serverUrl) {
-        this(client, serverUrl, false, new MetricJsonFormatter()); // For testing, disable batching
+        this(client, serverUrl, false);
     }
 
-    private WebServiceMetricsExporter(HttpClient client, String serverUrl, boolean batchingEnabled, MetricJsonFormatter formatter) {
+    private WebServiceMetricsExporter(HttpClient client, String serverUrl, boolean batchingEnabled) {
         this.client = client;
         this.serverUrl = serverUrl;
         this.batchingEnabled = batchingEnabled;
-        this.formatter = formatter;
+        this.formatter = new MetricJsonFormatter();
         if (batchingEnabled) {
             scheduler.scheduleAtFixedRate(this::flushMetrics, BATCH_INTERVAL_SECONDS, BATCH_INTERVAL_SECONDS, TimeUnit.SECONDS);
         }
@@ -56,18 +47,15 @@ public class WebServiceMetricsExporter implements MetricsExporter, AutoCloseable
         }
 
         if (!batchingEnabled) {
-            // For testing: send immediately
-            sendMetricsToServer(formatter.format(metrics));
+            sendMetricsToServer(metrics);
             return;
         }
 
         // Production batching mode
-        String host = metrics.get(0).host();
-        metrics.forEach(metric -> {
-            batchedMetrics.computeIfAbsent(host, k -> new ConcurrentHashMap<>())
-                .computeIfAbsent(metric.name(), k -> Collections.synchronizedList(new ArrayList<>()))
-                .add(metric);
-        });
+        metrics.forEach(metric ->
+            batchedMetrics.computeIfAbsent(metric.host(), k -> Collections.synchronizedList(new ArrayList<>()))
+                .add(metric)
+        );
     }
 
     private void flushMetrics() {
@@ -75,17 +63,18 @@ public class WebServiceMetricsExporter implements MetricsExporter, AutoCloseable
             return;
         }
 
-        batchedMetrics.forEach((host, metrics) -> {
-            List<Metric> metricsList = metrics.values().stream()
-                .flatMap(List::stream)
-                .toList();
-            sendMetricsToServer(formatter.format(metricsList));
-        });
+        List<Metric> allMetrics = batchedMetrics.values().stream()
+            .flatMap(List::stream)
+            .toList();
+
+        sendMetricsToServer(allMetrics);
         batchedMetrics.clear();
     }
 
-    private void sendMetricsToServer(String json) {
+    private void sendMetricsToServer(List<Metric> metrics) {
+        String json = formatter.format(metrics);
         logger.debug("Sending batched metrics to server: {}", json);
+
         Request request = new Request.Builder()
                 .url(serverUrl)
                 .header("Content-Type", "application/json")
@@ -102,7 +91,7 @@ public class WebServiceMetricsExporter implements MetricsExporter, AutoCloseable
                     response.code(), errorBody);
             }
         } catch (IOException e) {
-            logger.error("Failed to send metrics to server: {}", e.getMessage(), e);
+            logger.error("Network error while sending metrics to server: {}", e.getMessage(), e);
         }
     }
 

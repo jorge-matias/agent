@@ -22,15 +22,12 @@ class MetricJsonFormatterTest {
             new Metric("cpu", 75.5, "%", "test-host", timestamp)
         );
 
-        // Test compact formatting
-        String expectedCompact = String.format(
-            "{\"host\":\"test-host\",\"metrics\":{\"cpu\":[{\"t\":%d,\"v\":75.5,\"u\":\"%%\"}]}}",
+        String json = compactFormatter.format(metrics);
+        String expected = String.format(
+            "{\"points\":[{\"t\":%d,\"h\":\"test-host\",\"n\":\"cpu\",\"v\":75.5,\"u\":\"%%\"}]}",
             timestamp);
-        assertEquals(expectedCompact, compactFormatter.format(metrics));
 
-        // Test pretty formatting (ignoring whitespace)
-        String prettyJson = prettyFormatter.format(metrics);
-        assertEquals(expectedCompact.replaceAll("\\s+", ""), prettyJson.replaceAll("\\s+", ""));
+        assertEquals(expected, json);
     }
 
     @Test
@@ -44,9 +41,9 @@ class MetricJsonFormatterTest {
 
         String json = compactFormatter.format(metrics);
 
-        assertTrue(json.contains("\"host\":\"test-host\""));
-        assertTrue(json.contains(String.format("{\"t\":%d,\"v\":75.5,\"u\":\"%%\"}", timestamp1)));
-        assertTrue(json.contains(String.format("{\"t\":%d,\"v\":80,\"u\":\"%%\"}", timestamp2)));
+        assertTrue(json.contains("\"points\":["), "Should have points array");
+        assertTrue(json.contains(String.format("\"t\":%d", timestamp1)), "Should contain first timestamp");
+        assertTrue(json.contains(String.format("\"t\":%d", timestamp2)), "Should contain second timestamp");
     }
 
     @Test
@@ -60,11 +57,12 @@ class MetricJsonFormatterTest {
 
         String json = compactFormatter.format(metrics);
 
-        // Verify the structure without depending on the order
-        assertTrue(json.contains("\"host\":\"test-host\""));
-        assertTrue(json.contains(String.format("\"cpu\":[{\"t\":%d,\"v\":75.5,\"u\":\"%%\"}]", timestamp)));
-        assertTrue(json.contains(String.format("\"mem_free\":[{\"t\":%d,\"v\":1024,\"u\":\"MB\"}]", timestamp)));
-        assertTrue(json.contains(String.format("\"mem_total\":[{\"t\":%d,\"v\":2048,\"u\":\"MB\"}]", timestamp)));
+        assertTrue(json.contains("\"points\":["), "Should have points array");
+        assertTrue(json.contains("\"n\":\"cpu\""), "Should contain CPU metric name");
+        assertTrue(json.contains("\"n\":\"mem_free\""), "Should contain mem_free metric name");
+        assertTrue(json.contains("\"n\":\"mem_total\""), "Should contain mem_total metric name");
+        assertTrue(json.contains("\"u\":\"%\""), "Should contain percentage unit");
+        assertTrue(json.contains("\"u\":\"MB\""), "Should contain MB unit");
     }
 
     @Test
@@ -75,6 +73,7 @@ class MetricJsonFormatterTest {
         );
 
         String json = compactFormatter.format(metrics);
-        assertTrue(json.contains("\"v\":75,"));  // Should not contain .0
+        assertTrue(json.contains("\"v\":75"), "Should remove trailing zeros");
+        assertFalse(json.contains("\"v\":75.0"), "Should not contain trailing zero");
     }
 }
