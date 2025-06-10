@@ -158,6 +158,12 @@ The metrics format is designed for easy visualization in Grafana:
   - `src/`: Source code and resources
   - `Dockerfile`: Native image container build
   - `Dockerfile.jvm`: JVM-based container build
+  - `pom.xml`: Maven configuration for agent module
 - `server-module/`: Metrics server implementation
-- `metrics/`: Directory mounted in the agent container for metric logs
+  - `src/`: Source code and resources
+  - `Dockerfile`: Container build for the server
+  - `pom.xml`: Maven configuration for server module
 - `run.sh`: Unified build and run script
+- `compare-performance.sh`: Script for performance comparison
+- `docker-compose.yml`: Docker Compose configuration
+- `pom.xml`: Root Maven configuration file
