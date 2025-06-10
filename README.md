@@ -4,77 +4,43 @@ A monitoring system consisting of an agent that collects system metrics and a se
 
 ## Components
 
-- **Agent Module**: Collects CPU and memory metrics using a native executable built with GraalVM
+- **Agent Module**: Collects CPU and memory metrics using either native GraalVM binary or JVM
 - **Server Module**: Spring Boot application that receives and processes metrics
 
 ## Build & Run
 
-### Option 1: Using Local Maven Installation
+The system can be built and run in multiple ways using the unified `run.sh` script:
 
 ```bash
-./run-with-local-maven.sh
+./run.sh [build-type] [run-type]
 ```
 
-This script will:
+### Build Options
 
-- Build both modules using your local Maven installation
-- Start the containers using docker compose
+- `--build-local-jvm`: Build using local Maven installation
+- `--build-local-native`: Build native macOS binary using local GraalVM
+- `--build-docker`: Build using Maven in Docker
 
-### Option 2: Using Docker Only
+### Run Options
+
+- `--run-local-native`: Run native macOS agent with Docker server
+- `--run-local-jvm`: Run JVM agent with Docker server
+- `--run-docker-jvm`: Run both server and JVM agent in Docker
+- `--run-docker-graal`: Run both server and native agent in Docker
+
+### Examples
 
 ```bash
-./run-with-docker-build.sh
+# Local development with Docker server
+./run.sh --build-local-jvm --run-local-jvm       # Build & run with local JVM
+./run.sh --build-local-native --run-local-native # Build & run native macOS binary
+
+# Full Docker environment
+./run.sh --build-docker --run-docker-jvm         # Build & run everything in Docker (JVM version)
+./run.sh --build-docker --run-docker-graal       # Build & run everything in Docker (Native version)
 ```
 
-This script will:
-
-- Build the Java artifacts using Maven in Docker
-- Build and start all containers using docker compose
-
-### Option 3: Native macOS Binary
-
-```bash
-# Build the native binary
-./build-native-mac.sh
-
-# Run the native agent
-./agent-mac
-```
-
-This approach:
-
-- Builds a native executable using GraalVM
-- Creates a platform-specific binary optimized for macOS
-- Provides faster startup and lower memory footprint
-- Doesn't require a JVM to run
-
-### Option 4: JVM Mode
-
-```bash
-# Run the agent using JVM
-./run-agent-jvm.sh
-```
-
-This approach:
-
-- Runs the agent in traditional JVM mode
-- Configures specific memory settings (64MB initial, 128MB max heap)
-- Requires a JVM but offers more runtime flexibility
-
-### Memory and Performance Comparison
-
-To compare the performance between native and JVM modes:
-```bash
-./compare-performance.sh
-```
-
-This script will:
-- Run both native and JVM versions sequentially
-- Monitor CPU and memory usage for 10 seconds each
-- Display real-time comparison metrics
-- Show startup time, memory footprint, and CPU usage differences
-
-Native vs JVM mode characteristics:
+### Performance Characteristics
 
 - **Native Mode**
   - Memory usage: ~19-22MB
@@ -89,27 +55,6 @@ Native vs JVM mode characteristics:
   - Startup time: ~400ms
   - Runtime optimizations available
   - Platform independent
-
-Actual comparison measurements:
-```
-Time(s) CPU(%) Memory(MB)
--------------------------
-Native:
-      1    0.0      19.0
-      5    0.0      19.1
-     10    0.8      22.4
-
-JVM:
-      1    0.2      91.0
-      5    0.0      91.0
-     10    0.8      95.7
-```
-
-Key Findings:
-- Native binary uses ~75% less memory
-- CPU usage is comparable between both versions
-- Native version starts up ~2x faster
-- Both versions show stable memory usage over time
 
 ## Configuration
 
@@ -140,16 +85,7 @@ exporters:
 ### Environment Variables
 
 - `AGENT_COLLECTION_INTERVAL`: Override the collection interval from the config file
-- `SERVER_URL`: Override the metrics server URL (default: http://server-module:8080/metrics)
-
-## Metrics
-
-The agent collects and exports the following metrics:
-
-- **CPU Load**: Current system CPU load percentage
-- **Memory**: 
-  - Free memory in MB
-  - Total memory in MB
+- `SERVER_URL`: Override the metrics server URL
 
 ## Data Format
 
@@ -196,8 +132,19 @@ Available metrics and their units:
 - CPU Load: Percentage (%)
 - Memory: Megabytes (MB)
 
+## Server API Endpoints
+
+- `POST /metrics`: Submit new metrics
+- `GET /metrics/{host}/{metric}`: Get specific metric for a host
+- `GET /metrics/{host}`: Get all metrics for a host
+- `GET /metrics/aggregated?bucketSize=5m`: Get aggregated metrics (supported bucket sizes: s,m,h,d)
+
 ## Directory Structure
 
 - `agent-module/`: Agent implementation and configuration
+  - `src/`: Source code and resources
+  - `Dockerfile`: Native image container build
+  - `Dockerfile.jvm`: JVM-based container build
 - `server-module/`: Metrics server implementation
 - `metrics/`: Directory mounted in the agent container for metric logs
+- `run.sh`: Unified build and run script

@@ -12,7 +12,7 @@ services:
     build: ./server-module
     ports:
       - "8080:8080"
-    profiles: ["build", "default"]
+    profiles: ["build", "default", "jvm"]
 
   agent-module:
     build: ./agent-module
@@ -23,3 +23,15 @@ services:
     environment:
       - SERVER_URL=http://server-module:8080/metrics
     profiles: ["build", "default"]
+
+  agent-module-jvm:
+    build:
+      context: ./agent-module
+      dockerfile: Dockerfile.jvm
+    volumes:
+      - ./metrics:/app/metrics
+    depends_on:
+      - server-module
+    environment:
+      - SERVER_URL=http://server-module:8080/metrics
+    profiles: ["jvm"]

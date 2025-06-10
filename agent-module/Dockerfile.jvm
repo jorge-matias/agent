@@ -1,0 +1,10 @@
+FROM eclipse-temurin:21-jre-alpine
+
+WORKDIR /app
+
+# Copy the JAR file
+COPY target/agent-module-1.0-SNAPSHOT-jar-with-dependencies.jar /app/agent.jar
+COPY src/main/resources/agent-config.yml /app/agent-config.yml
+
+# Run the agent with JVM settings optimized for containers
+CMD ["java", "-Xms64m", "-Xmx128m", "-XX:MaxRAMPercentage=75", "-jar", "agent.jar"]
