@@ -121,10 +121,11 @@ class MetricsIT {
         MetricsCollectionTask task = new MetricsCollectionTask(collectors, exporter);
         task.run();
 
-        // Allow some time for the request to be processed
+        // Allow some time for the request to be processed ./run.sh --build-docker --run-docker-jvm
         TimeUnit.MILLISECONDS.sleep(500);
 
         // Verify we got exactly one request attempt
         assertEquals(1, wireMock.getAllServeEvents().size());
     }
 }
+

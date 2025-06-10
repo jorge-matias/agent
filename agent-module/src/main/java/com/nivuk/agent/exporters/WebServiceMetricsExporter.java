@@ -1,18 +1,25 @@
 package com.nivuk.agent.exporters;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import com.nivuk.agent.model.Metric;
-import okhttp3.*;
+
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class WebServiceMetricsExporter implements MetricsExporter, AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(WebServiceMetricsExporter.class);
@@ -22,19 +29,21 @@ public class WebServiceMetricsExporter implements MetricsExporter, AutoCloseable
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private static final long BATCH_INTERVAL_SECONDS = 10;
     private final boolean batchingEnabled;
+    private final MetricJsonFormatter formatter;
 
     public WebServiceMetricsExporter(OkHttpClient okHttpClient, String serverUrl) {
-        this(new OkHttpClientWrapper(okHttpClient), serverUrl, true);
+        this(new OkHttpClientWrapper(okHttpClient), serverUrl, true, new MetricJsonFormatter());
     }
 
     WebServiceMetricsExporter(HttpClient client, String serverUrl) {
-        this(client, serverUrl, false); // For testing, disable batching
+        this(client, serverUrl, false, new MetricJsonFormatter()); // For testing, disable batching
     }
 
-    private WebServiceMetricsExporter(HttpClient client, String serverUrl, boolean batchingEnabled) {
+    private WebServiceMetricsExporter(HttpClient client, String serverUrl, boolean batchingEnabled, MetricJsonFormatter formatter) {
         this.client = client;
         this.serverUrl = serverUrl;
         this.batchingEnabled = batchingEnabled;
+        this.formatter = formatter;
         if (batchingEnabled) {
             scheduler.scheduleAtFixedRate(this::flushMetrics, BATCH_INTERVAL_SECONDS, BATCH_INTERVAL_SECONDS, TimeUnit.SECONDS);
         }
@@ -48,12 +57,7 @@ public class WebServiceMetricsExporter implements MetricsExporter, AutoCloseable
 
         if (!batchingEnabled) {
             // For testing: send immediately
-            String host = metrics.get(0).host();
-            Map<String, List<Metric>> metricsByName = new HashMap<>();
-            metrics.forEach(metric ->
-                metricsByName.computeIfAbsent(metric.name(), k -> new ArrayList<>()).add(metric)
-            );
-            sendMetricsToServer(createBatchJson(host, metricsByName));
+            sendMetricsToServer(formatter.format(metrics));
             return;
         }
 
@@ -72,40 +76,12 @@ public class WebServiceMetricsExporter implements MetricsExporter, AutoCloseable
         }
 
         batchedMetrics.forEach((host, metrics) -> {
-            String json = createBatchJson(host, metrics);
-            sendMetricsToServer(json);
+            List<Metric> metricsList = metrics.values().stream()
+                .flatMap(List::stream)
+                .toList();
+            sendMetricsToServer(formatter.format(metricsList));
         });
         batchedMetrics.clear();
-    }
-
-    @NotNull
-    private static String createBatchJson(String host, Map<String, List<Metric>> metricsByName) {
-        StringJoiner metricsJson = new StringJoiner(",");
-
-        for (Map.Entry<String, List<Metric>> entry : metricsByName.entrySet()) {
-            String metricName = entry.getKey();
-            StringJoiner valuesJson = new StringJoiner(",");
-
-            for (Metric metric : entry.getValue()) {
-                String value = String.format(Locale.ENGLISH, "%.1f", metric.value());
-                if (value.endsWith(".0")) {
-                    value = value.substring(0, value.length() - 2);
-                }
-                valuesJson.add(String.format("{\"t\":%d,\"v\":%s,\"u\":\"%s\"}",
-                    metric.timestamp(), value, getMetricUnit(metric.name())));
-            }
-            metricsJson.add(String.format("\"%s\":[%s]", metricName, valuesJson));
-        }
-
-        return String.format("{\"host\":\"%s\",\"metrics\":{%s}}", host, metricsJson);
-    }
-
-    private static String getMetricUnit(String metricName) {
-        return switch (metricName) {
-            case "cpu" -> "%";
-            case "mem_total", "mem_free" -> "MB";
-            default -> "";
-        };
     }
 
     private void sendMetricsToServer(String json) {

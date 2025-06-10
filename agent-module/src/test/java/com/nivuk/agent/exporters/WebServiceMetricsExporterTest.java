@@ -91,3 +91,4 @@ class WebServiceMetricsExporterTest {
         assertEquals(1, httpClient.getRequests().size());
     }
 }
+
