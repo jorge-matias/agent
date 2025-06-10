@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{mm:ss.SSS} %-5level %logger{1} - %msg%n%xEx{1}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Suppress WireMock's verbose logging -->
+    <logger name="org.eclipse.jetty" level="WARN"/>
+    <logger name="com.github.tomakehurst.wiremock" level="WARN"/>
+
+    <!-- Only show first line of exceptions -->
+    <logger name="com.nivuk.agent" level="INFO"/>
+
+    <root level="WARN">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>
