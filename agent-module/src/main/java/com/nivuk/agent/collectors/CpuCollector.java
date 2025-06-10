@@ -8,7 +8,6 @@ import java.util.List;
 
 public class CpuCollector implements Collector {
     private final OperatingSystemMXBean osBean;
-    private static final int MEASUREMENT_INTERVAL_MS = 100;
 
     public CpuCollector() {
         this.osBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
@@ -16,26 +15,20 @@ public class CpuCollector implements Collector {
 
     @Override
     public List<Metric> collect() {
-        try {
-            double cpuLoad = measureCpuLoad();
-            return List.of(new Metric("cpu", cpuLoad, "%"));
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Failed to collect CPU metrics", e);
-        }
+        CpuMeasurement measurement = measureCpuLoad();
+        return List.of(new Metric("cpu", measurement.cpuLoad, "p"));
     }
 
-    private double measureCpuLoad() throws InterruptedException {
-        double first = osBean.getCpuLoad();
-        if (first < 0) { // First reading might be negative
-            Thread.sleep(MEASUREMENT_INTERVAL_MS);
-            first = osBean.getCpuLoad();
-        }
+    private record CpuMeasurement(double cpuLoad, long timestamp) {}
 
-        Thread.sleep(MEASUREMENT_INTERVAL_MS);
-        double second = osBean.getCpuLoad();
+    private CpuMeasurement measureCpuLoad() {
+        long currentTime = System.currentTimeMillis();
+        double cpuLoad = osBean.getCpuLoad();
 
-        // Convert to percentage and ensure it's within bounds
-        double cpuPercentage = Math.max(0, Math.min(100, second * 100));
-        return Double.isNaN(cpuPercentage) ? 0.0 : cpuPercentage;
+        // Convert to percentage and handle edge cases
+        double cpuPercentage = Math.max(0, Math.min(100, cpuLoad * 100));
+        cpuPercentage = Double.isNaN(cpuPercentage) ? 0.0 : cpuPercentage;
+
+        return new CpuMeasurement(cpuPercentage, currentTime);
     }
 }

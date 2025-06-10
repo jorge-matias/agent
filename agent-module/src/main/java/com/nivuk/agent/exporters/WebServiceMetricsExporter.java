@@ -57,22 +57,16 @@ public class WebServiceMetricsExporter implements MetricsExporter {
 
     @NotNull
     private static String metricsToJson(List<Metric> metrics, long timestamp, String host) {
-        StringJoiner joiner = new StringJoiner(",\n                ");
+        StringJoiner joiner = new StringJoiner(",");
         for (Metric metric : metrics) {
-            String format = String.format("\"%s\": %.2f", metric.name(), metric.value());
-            joiner.add(format);
+            // Use compact format with minimal decimal places
+            String value = String.format("%.1f", metric.value());
+            // Remove .0 suffix for whole numbers
+            if (value.endsWith(".0")) {
+                value = value.substring(0, value.length() - 2);
+            }
+            joiner.add(String.format("\"%s\":%s", metric.name(), value));
         }
-        return String.format("""
-            {
-              "timestamp": %d,
-              "host": "%s",
-              "metrics": {
-                %s
-              }
-            }""",
-            timestamp,
-            host,
-            joiner
-        );
+        return String.format("{\"t\":%d,\"h\":\"%s\",\"m\":{%s}}", timestamp, host, joiner);
     }
 }
