@@ -151,6 +151,26 @@ The agent collects and exports the following metrics:
   - Free memory in MB
   - Total memory in MB
 
+## Data Format
+
+The agent sends metrics to the server using a compact JSON format:
+
+```json
+{
+    "t": 1686394800000,  // timestamp in milliseconds
+    "h": "hostname",     // host identifier
+    "m": {              // metrics map with shortened keys
+        "c": 45.2,      // CPU usage percentage
+        "m": 1024.0     // Memory usage in MB
+    }
+}
+```
+
+The metrics are:
+- Grouped by timestamp and host
+- Merged if they have the same name (latest value wins)
+- Sent in batches to optimize network usage
+
 ## Directory Structure
 
 - `agent-module/`: Agent implementation and configuration

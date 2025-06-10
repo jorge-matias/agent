@@ -46,8 +46,10 @@ public class WebServiceMetricsExporter implements MetricsExporter {
     }
 
     private void sendMetricsToServer(String json) {
+        logger.debug("Sending metrics to server: {}", json);
         Request request = new Request.Builder()
                 .url(serverUrl)
+                .header("Content-Type", "application/json")
                 .post(RequestBody.create(json, MediaType.get("application/json")))
                 .build();
 

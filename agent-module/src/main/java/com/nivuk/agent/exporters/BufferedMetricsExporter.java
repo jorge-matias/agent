@@ -52,12 +52,19 @@ public class BufferedMetricsExporter implements MetricsExporter {
             Map<String, List<Metric>> groupedMetrics = toExport.stream()
                 .collect(Collectors.groupingBy(m -> m.timestamp() + "-" + m.host()));
 
-            // Export each group as a single batch
-            for (List<Metric> group : groupedMetrics.values()) {
-                delegate.export(group);
+            // For each unique timestamp-host combination, merge all metrics into a single batch
+            for (Map.Entry<String, List<Metric>> entry : groupedMetrics.entrySet()) {
+                List<Metric> groupMetrics = entry.getValue();
+                // Merge metrics with the same name by taking the latest value
+                Map<String, Metric> mergedMetrics = new HashMap<>();
+                for (Metric metric : groupMetrics) {
+                    mergedMetrics.put(metric.name(), metric);
+                }
+                // Export the merged metrics as a single batch
+                delegate.export(new ArrayList<>(mergedMetrics.values()));
             }
 
-            logger.debug("Flushed {} metrics ({} batches) after {} seconds",
+            logger.debug("Flushed {} metrics into {} batches after {} seconds",
                 toExport.size(),
                 groupedMetrics.size(),
                 bufferSeconds);
