@@ -7,8 +7,10 @@ import com.nivuk.agent.collectors.MemoryCollector;
 import com.nivuk.agent.exporters.MetricsExporter;
 import com.nivuk.agent.exporters.WebServiceMetricsExporter;
 import okhttp3.OkHttpClient;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.MDC;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -17,12 +19,17 @@ import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class MetricsIntegrationTest {
+class MetricsIT {
 
     @RegisterExtension
     static WireMockExtension wireMock = WireMockExtension.newInstance()
             .options(wireMockConfig().dynamicPort())
             .build();
+
+    @BeforeEach
+    void setup() {
+        MDC.put("test", "true"); // Used by logback to filter stack traces
+    }
 
     @Test
     void shouldCollectAndExportMetrics() throws Exception {
