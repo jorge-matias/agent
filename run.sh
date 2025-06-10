@@ -40,7 +40,9 @@ check_docker() {
 # Build functions
 build_local_jvm() {
     echo -e "${GREEN}Building with local Maven...${NC}"
-    mvn clean package || error "Maven build failed"
+    if ! mvn clean package; then
+        error "Maven build failed"
+    fi
 }
 
 build_local_native() {
@@ -50,8 +52,14 @@ build_local_native() {
     fi
 
     cd agent-module || error "Could not find agent-module directory"
-    mvn clean package || error "Maven build failed"
-    native-image -jar target/agent-module-1.0-SNAPSHOT-jar-with-dependencies.jar || error "Native image build failed"
+    if ! mvn clean package; then
+        cd ..
+        error "Maven build failed"
+    fi
+    if ! native-image -jar target/agent-module-1.0-SNAPSHOT-jar-with-dependencies.jar; then
+        cd ..
+        error "Native image build failed"
+    fi
     mv agent-module ../agent-mac || error "Failed to move native binary"
     cd ..
 }
@@ -59,7 +67,24 @@ build_local_native() {
 build_docker() {
     echo -e "${GREEN}Building with Docker Maven...${NC}"
     check_docker
-    docker compose --profile build up maven || error "Docker Maven build failed"
+
+    # Run Maven in docker compose and capture the output
+    if ! output=$(docker compose --profile build up maven 2>&1); then
+        echo "$output"
+        error "Docker Maven build failed"
+    fi
+
+    # Check if the output contains Maven build failure indicators
+    if echo "$output" | grep -q "\[ERROR\]"; then
+        echo "$output"
+        error "Maven build failed"
+    fi
+
+    # Check if JAR files were actually created
+    if [ ! -f "./agent-module/target/agent-module-1.0-SNAPSHOT-jar-with-dependencies.jar" ] || \
+       [ ! -f "./server-module/target/server-module-1.0-SNAPSHOT.jar" ]; then
+        error "Maven build failed to generate required JAR files"
+    fi
 }
 
 # Run functions
@@ -152,6 +177,28 @@ done
 # Execute commands
 if [ -n "$BUILD_CMD" ]; then
     $BUILD_CMD
+    # Build command will exit via error() if it fails
+fi
+
+if [ -n "$RUN_CMD" ] && [ -z "$BUILD_CMD" ]; then
+    # If only running (no build), check that required files exist
+    case "$RUN_CMD" in
+        run_local_native)
+            [ -f "./agent-mac" ] || error "Native binary not found. Build it first with --build-local-native"
+            ;;
+        run_local_jvm|run_docker_jvm)
+            [ -f "./agent-module/target/agent-module-1.0-SNAPSHOT-jar-with-dependencies.jar" ] || \
+                error "Agent JAR not found. Build it first"
+            [ -f "./server-module/target/server-module-1.0-SNAPSHOT.jar" ] || \
+                error "Server JAR not found. Build it first"
+            ;;
+        run_docker_graal)
+            [ -f "./agent-module/target/agent-module-1.0-SNAPSHOT-jar-with-dependencies.jar" ] || \
+                error "Agent JAR not found. Build it first"
+            [ -f "./server-module/target/server-module-1.0-SNAPSHOT.jar" ] || \
+                error "Server JAR not found. Build it first"
+            ;;
+    esac
 fi
 
 if [ -n "$RUN_CMD" ]; then
