@@ -3,7 +3,9 @@ package com.nivuk.agent.exporters;
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.StringJoiner;
+import java.util.stream.Collectors;
 
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -69,16 +71,35 @@ public class WebServiceMetricsExporter implements MetricsExporter {
 
     @NotNull
     private static String metricsToJson(List<Metric> metrics, long timestamp, String host) {
-        StringJoiner joiner = new StringJoiner(",");
-        for (Metric metric : metrics) {
-            // Use English locale to ensure dot as decimal separator
-            String value = String.format(Locale.ENGLISH, "%.1f", metric.value());
-            // Remove .0 suffix for whole numbers
-            if (value.endsWith(".0")) {
-                value = value.substring(0, value.length() - 2);
+        Map<String, List<Metric>> metricsByName = metrics.stream()
+            .collect(Collectors.groupingBy(Metric::name));
+
+        StringJoiner metricsJson = new StringJoiner(",");
+        for (Map.Entry<String, List<Metric>> entry : metricsByName.entrySet()) {
+            String metricName = entry.getKey();
+            StringJoiner valuesJson = new StringJoiner(",");
+
+            for (Metric metric : entry.getValue()) {
+                // Use English locale to ensure dot as decimal separator
+                String value = String.format(Locale.ENGLISH, "%.1f", metric.value());
+                // Remove .0 suffix for whole numbers
+                if (value.endsWith(".0")) {
+                    value = value.substring(0, value.length() - 2);
+                }
+                valuesJson.add(String.format("{\"t\":%d,\"v\":%s,\"u\":\"%s\"}",
+                    metric.timestamp(), value, getMetricUnit(metric.name())));
             }
-            joiner.add(String.format("\"%s\":%s", metric.name(), value));
+            metricsJson.add(String.format("\"%s\":[%s]", metricName, valuesJson));
         }
-        return String.format("{\"t\":%d,\"h\":\"%s\",\"m\":{%s}}", timestamp, host, joiner);
+
+        return String.format("{\"host\":\"%s\",\"metrics\":{%s}}", host, metricsJson);
+    }
+
+    private static String getMetricUnit(String metricName) {
+        return switch (metricName) {
+            case "cpu" -> "%";
+            case "memory" -> "MB";
+            default -> "";
+        };
     }
 }

@@ -1,59 +1,114 @@
 package com.nivuk.server;
 
+import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.nivuk.server.storage.MetricStorage;
+import com.nivuk.server.storage.MetricStorage.MetricValue;
 
 @RestController
 public class MetricsController {
     private static final Logger logger = LoggerFactory.getLogger(MetricsController.class);
+    private final MetricStorage storage;
 
-    // Store metrics by timestamp-host combination
-    private final Map<String, Map<String, Double>> metricsStore = new ConcurrentHashMap<>();
+    public MetricsController(MetricStorage storage) {
+        this.storage = storage;
+    }
 
     public static class MetricsPayload {
-        @JsonProperty("t")
-        private long timestamp;
-        @JsonProperty("h")
         private String host;
-        @JsonProperty("m")
-        private Map<String, Double> metrics;
+        private Map<String, List<MetricPoint>> metrics;
 
-        public long getTimestamp() { return timestamp; }
-        public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
+        public static class MetricPoint {
+            private long t;
+            private double v;
+            private String u;
+
+            public long getT() { return t; }
+            public void setT(long t) { this.t = t; }
+            public double getV() { return v; }
+            public void setV(double v) { this.v = v; }
+            public String getU() { return u; }
+            public void setU(String u) { this.u = u; }
+        }
+
         public String getHost() { return host; }
         public void setHost(String host) { this.host = host; }
-        public Map<String, Double> getMetrics() { return metrics; }
-        public void setMetrics(Map<String, Double> metrics) { this.metrics = metrics; }
+        public Map<String, List<MetricPoint>> getMetrics() { return metrics; }
+        public void setMetrics(Map<String, List<MetricPoint>> metrics) { this.metrics = metrics; }
     }
 
     @PostMapping("/metrics")
     public void receiveMetrics(@RequestBody MetricsPayload payload) {
-        String key = payload.getTimestamp() + "-" + payload.getHost();
+        payload.getMetrics().forEach((metricName, points) -> {
+            points.forEach(point -> {
+                storage.addMetrics(
+                    payload.getHost(),
+                    metricName,
+                    point.getT(),
+                    point.getV(),
+                    point.getU()
+                );
+            });
+        });
 
-        // Get or create metrics map for this timestamp-host combination
-        Map<String, Double> existingMetrics = metricsStore.computeIfAbsent(key, k -> new ConcurrentHashMap<>());
-
-        // Merge new metrics, overwriting existing values (taking latest value like the agent)
-        existingMetrics.putAll(payload.getMetrics());
-
-        logger.info("Processed metrics from host '{}' at timestamp {}: {}",
-            payload.getHost(),
-            payload.getTimestamp(),
-            existingMetrics);
+        logger.debug("Processed {} metrics from host '{}'",
+            payload.getMetrics().values().stream().mapToInt(List::size).sum(),
+            payload.getHost());
     }
 
-    @GetMapping("/metrics")
-    public Map<String, Map<String, Double>> getMetrics() {
-        return metricsStore;
+    @GetMapping("/metrics/{host}/{metric}")
+    public Map<Long, MetricValue> getMetrics(
+            @PathVariable String host,
+            @PathVariable String metric,
+            @RequestParam(required = false) Long from,
+            @RequestParam(required = false) Long to) {
+
+        long fromTime = from != null ? from : System.currentTimeMillis() - Duration.ofHours(1).toMillis();
+        long toTime = to != null ? to : System.currentTimeMillis();
+
+        return storage.getMetrics(host, metric, fromTime, toTime);
     }
 
-    @GetMapping("/metrics/{timestampHost}")
-    public Map<String, Double> getMetricsByTimestampHost(@PathVariable String timestampHost) {
-        return metricsStore.getOrDefault(timestampHost, Collections.emptyMap());
+    @GetMapping("/metrics/{host}")
+    public Map<String, Map<Long, MetricValue>> getHostMetrics(
+            @PathVariable String host,
+            @RequestParam(required = false) Long from,
+            @RequestParam(required = false) Long to) {
+
+        long fromTime = from != null ? from : System.currentTimeMillis() - Duration.ofHours(1).toMillis();
+        long toTime = to != null ? to : System.currentTimeMillis();
+
+        return storage.getMetricsByHost(host, fromTime, toTime);
+    }
+
+    @GetMapping("/metrics/aggregated")
+    public Map<String, Map<String, Map<Long, MetricValue>>> getAggregatedMetrics(
+            @RequestParam(defaultValue = "5m") String bucketSize) {
+
+        Duration interval = parseDuration(bucketSize);
+        return storage.getAggregatedView(
+            values -> new MetricValue(
+                values.stream().mapToDouble(MetricValue::getValue).average().orElse(0.0),
+                values.get(0).getUnit()
+            ),
+            interval
+        );
+    }
+
+    private Duration parseDuration(String duration) {
+        String value = duration.substring(0, duration.length() - 1);
+        char unit = duration.charAt(duration.length() - 1);
+        long amount = Long.parseLong(value);
+
+        return switch (unit) {
+            case 's' -> Duration.ofSeconds(amount);
+            case 'm' -> Duration.ofMinutes(amount);
+            case 'h' -> Duration.ofHours(amount);
+            case 'd' -> Duration.ofDays(amount);
+            default -> throw new IllegalArgumentException("Invalid duration unit: " + unit);
+        };
     }
 }

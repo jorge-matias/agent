@@ -153,23 +153,48 @@ The agent collects and exports the following metrics:
 
 ## Data Format
 
-The agent sends metrics to the server using a compact JSON format:
+The agent sends metrics to the server using a JSON format that groups metrics by name. Each metric includes its timestamp, value, and unit:
 
 ```json
 {
-    "t": 1686394800000,  // timestamp in milliseconds
-    "h": "hostname",     // host identifier
-    "m": {              // metrics map with shortened keys
-        "c": 45.2,      // CPU usage percentage
-        "m": 1024.0     // Memory usage in MB
+    "host": "hostname",
+    "metrics": {
+        "cpu": [
+            {
+                "t": 1686394800000,
+                "v": 45.2,
+                "u": "%"
+            },
+            {
+                "t": 1686394801000,
+                "v": 46.1,
+                "u": "%"
+            }
+        ],
+        "memory": [
+            {
+                "t": 1686394800000,
+                "v": 1024,
+                "u": "MB"
+            },
+            {
+                "t": 1686394801000,
+                "v": 1028,
+                "u": "MB"
+            }
+        ]
     }
 }
 ```
 
 The metrics are:
-- Grouped by timestamp and host
-- Merged if they have the same name (latest value wins)
+- Grouped by host and metric name
+- Include timestamp (t), value (v), and unit (u) for each measurement
 - Sent in batches to optimize network usage
+
+Available metrics and their units:
+- CPU Load: Percentage (%)
+- Memory: Megabytes (MB)
 
 ## Directory Structure
 
