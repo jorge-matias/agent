@@ -42,7 +42,17 @@ public class MetricsController {
 
     @PostMapping("/metrics")
     public void receiveMetrics(@RequestBody MetricsPayload payload) {
+        logger.info("Received metrics batch from host: {} with {} metric types",
+            payload.getHost(),
+            payload.getMetrics().size());
+
         payload.getMetrics().forEach((metricName, points) -> {
+            logger.info("Processing {} {} metrics from host '{}' ({} data points)",
+                points.size(),
+                metricName,
+                payload.getHost(),
+                points.size());
+
             points.forEach(point -> {
                 storage.addMetrics(
                     payload.getHost(),
@@ -54,8 +64,13 @@ public class MetricsController {
             });
         });
 
-        logger.debug("Processed {} metrics from host '{}'",
-            payload.getMetrics().values().stream().mapToInt(List::size).sum(),
+        int totalDataPoints = payload.getMetrics().values().stream()
+            .mapToInt(List::size)
+            .sum();
+
+        logger.info("Successfully processed batch: {} total data points across {} metric types for host '{}'",
+            totalDataPoints,
+            payload.getMetrics().size(),
             payload.getHost());
     }
 
